@@ -1,0 +1,87 @@
+# Dataset files - large files that shouldn't be in git
+datasets/**/*.jpg
+datasets/**/*.jpeg
+datasets/**/*.png
+datasets/**/*.tiff
+datasets/**/*.tif
+datasets/**/*.txt
+datasets/**/*.json
+datasets/**/*.yaml
+datasets/**/*.yml
+datasets/**/*.zip
+datasets/**/*.tar
+datasets/**/*.tar.gz
+
+# Keep dataset folder structure
+!datasets/**/
+!datasets/**/.gitkeep
+
+# Model weights and checkpoints
+*.pt
+*.pth
+*.onnx
+*.engine
+*.weights
+*.best
+*.last
+
+# Training runs and logs
+runs/
+logs/
+lightning_logs/
+wandb/
+tensorboard/
+
+# Cache files
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.cache/
+*.cache
+
+# Environment and IDE
+env/
+venv/
+.env
+.venv
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Images directory (if contains large source images)
+images/*.tiff
+images/*.tif
+images/*.jpg
+images/*.jpeg
+images/*.png
+
+# Keep images folder structure
+!images/
+!images/.gitkeep
+
+# Other large files
+*.zip
+*.tar.gz
+*.7z
+*.rar 
