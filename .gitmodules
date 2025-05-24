@@ -1,3 +1,6 @@
 [submodule "ultralytics"]
 	path = ultralytics
 	url = https://github.com/ultralytics/ultralytics.git
+[submodule "web-interface"]
+	path = web-interface
+	url = https://github.com/msdsn/MIDOGpp-Refine-inference-web.git
