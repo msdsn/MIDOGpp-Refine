@@ -12,3 +12,4 @@ scipy
 seaborn
 ultralytics-thop
 opencv-python-headless
+roboflow

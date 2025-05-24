@@ -36,16 +36,21 @@ IMAGES_DIR = "datasets/midog_original/images"
 OUTPUT_DIR = "datasets/midog_yolo"
 TRAIN_DIR = os.path.join(OUTPUT_DIR, "train")
 VAL_DIR = os.path.join(OUTPUT_DIR, "val")
+TEST_DIR = os.path.join(OUTPUT_DIR, "test")
 IMG_DIR_TRAIN = os.path.join(TRAIN_DIR, "images")
 LABELS_DIR_TRAIN = os.path.join(TRAIN_DIR, "labels")
 IMG_DIR_VAL = os.path.join(VAL_DIR, "images")
 LABELS_DIR_VAL = os.path.join(VAL_DIR, "labels")
+IMG_DIR_TEST = os.path.join(TEST_DIR, "images")
+LABELS_DIR_TEST = os.path.join(TEST_DIR, "labels")
 
 # Create directories
 os.makedirs(IMG_DIR_TRAIN, exist_ok=True)
 os.makedirs(LABELS_DIR_TRAIN, exist_ok=True)
 os.makedirs(IMG_DIR_VAL, exist_ok=True)
 os.makedirs(LABELS_DIR_VAL, exist_ok=True)
+os.makedirs(IMG_DIR_TEST, exist_ok=True)
+os.makedirs(LABELS_DIR_TEST, exist_ok=True)
 
 # Load MIDOG data
 print("Loading MIDOG++ JSON...")
@@ -69,16 +74,19 @@ for ann in annotations:
 category_id_to_idx = {cat['id']: idx for idx, cat in enumerate(categories)}
 print(f"Categories: {category_id_to_idx}")
 
-# Split datasets (80% train, 20% validation)
+# Split datasets (70% train, 15% validation, 15% test)
 random.seed(42)
 all_image_ids = list(set(img['id'] for img in images))
 random.shuffle(all_image_ids)
-split_idx = int(len(all_image_ids) * 0.8)
-train_ids = set(all_image_ids[:split_idx])
-val_ids = set(all_image_ids[split_idx:])
+train_split_idx = int(len(all_image_ids) * 0.7)
+val_split_idx = int(len(all_image_ids) * 0.85)
+train_ids = set(all_image_ids[:train_split_idx])
+val_ids = set(all_image_ids[train_split_idx:val_split_idx])
+test_ids = set(all_image_ids[val_split_idx:])
 
 print(f"Training images: {len(train_ids)}")
 print(f"Validation images: {len(val_ids)}")
+print(f"Test images: {len(test_ids)}")
 
 # Function to clip values to range [0, 1]
 def clip_bbox(value: float) -> float:
@@ -105,16 +113,24 @@ for img_data in tqdm(images):
         print(f"Warning: Image {tiff_file} not found. Skipping.")
         continue
     
-    # Determine if this is a training or validation image
+    # Determine if this is a training, validation, or test image
     is_train = img_id in train_ids
+    is_val = img_id in val_ids
+    is_test = img_id in test_ids
     
     # Set destination directories
     if is_train:
         img_output_dir = IMG_DIR_TRAIN
         labels_output_dir = LABELS_DIR_TRAIN
-    else:
+    elif is_val:
         img_output_dir = IMG_DIR_VAL
         labels_output_dir = LABELS_DIR_VAL
+    elif is_test:
+        img_output_dir = IMG_DIR_TEST
+        labels_output_dir = LABELS_DIR_TEST
+    else:
+        print(f"Warning: Image {img_id} not found in any split. Skipping.")
+        continue
     
     # Convert TIFF to JPG and save
     try:
@@ -166,7 +182,7 @@ for img_data in tqdm(images):
         print(f"Error processing {tiff_file}: {str(e)}")
 
 # Clean up old cache files if they exist
-for cache_file in ['datasets/midog_yolo/train/labels.cache', 'datasets/midog_yolo/val/labels.cache']:
+for cache_file in ['datasets/midog_yolo/train/labels.cache', 'datasets/midog_yolo/val/labels.cache', 'datasets/midog_yolo/test/labels.cache']:
     if os.path.exists(cache_file):
         os.remove(cache_file)
         print(f"Removed old cache file: {cache_file}")
@@ -175,6 +191,7 @@ for cache_file in ['datasets/midog_yolo/train/labels.cache', 'datasets/midog_yol
 yaml_content = f"""# MIDOG dataset
 train: train/images
 val: val/images
+test: test/images
 
 # Classes
 names:

@@ -12,14 +12,14 @@ def main():
     
     # Train the model
     results = model.train(
-        data='datasets/midog_yolo_patches/dataset.yaml',
+        data='datasets/midog_yolo_patches_640_single_class/dataset.yaml',
         epochs=100,
         imgsz=480,
         batch=16,
         name='midog_mitosis',
         save_period=10,
         patience=15,
-        device='cpu'  # automatically use GPU if available
+        #device='cpu'  
     )
     
     # Save final model
