@@ -8,13 +8,13 @@ from ultralytics import YOLO
 
 def main():
     # Initialize YOLOv8 model
-    model = YOLO('yolov8n.pt')  # nano model for faster training
+    model = YOLO('yolo11n.yaml')  # nano model for faster training
     
     # Train the model
     results = model.train(
-        data='datasets/midog_yolo_patches_640_single_class/dataset.yaml',
+        data='datasets/midog_yolo_patches_640_single_class_no_empty/dataset.yaml',
         epochs=100,
-        imgsz=480,
+        imgsz=640,
         batch=16,
         name='midog_mitosis',
         save_period=10,

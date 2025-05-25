@@ -1,0 +1,17 @@
+# Full Images - Multi Class Configuration
+# MIDOG Dataset preparation for YOLO training
+
+# Patch settings
+USE_PATCHES: false
+
+# Class settings
+SINGLE_CLASS: false
+
+# Dataset split settings
+INCLUDE_TEST_SET: true
+TRAIN_RATIO: 0.7
+VAL_RATIO: 0.15
+
+# File paths
+MIDOG_JSON: "MIDOG++.json"
+IMAGES_DIR: "datasets/midog_original/images" 
