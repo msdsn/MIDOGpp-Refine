@@ -1,0 +1,24 @@
+# 640px Patches - Single Class Configuration with High Overlap Threshold
+# MIDOG Dataset preparation for YOLO training
+# High overlap threshold (0.8) ensures only annotations with 80%+ overlap are included
+
+# Patch settings
+USE_PATCHES: true
+PATCH_SIZE: 640
+OVERLAP: 0
+
+# Class settings
+SINGLE_CLASS: true
+
+# Dataset split settings
+INCLUDE_TEST_SET: true
+TRAIN_RATIO: 0.7
+VAL_RATIO: 0.15
+
+# Patch filtering settings
+SKIP_EMPTY_PATCHES: true
+OVERLAP_RATIO_THRESHOLD: 0.8  # High threshold - only include annotations with 80%+ overlap
+
+# File paths
+MIDOG_JSON: "MIDOG++.json"
+IMAGES_DIR: "datasets/midog_original/images" 

@@ -7,7 +7,7 @@ sys.path.append('ultralytics')
 from ultralytics import YOLO
 
 def main():
-    # Initialize YOLOv8 model
+    # Initialize YOLOv11 model
     model = YOLO('yolo11n.yaml')  # nano model for faster training
     
     # Train the model
