@@ -20,7 +20,8 @@ DEFAULT_CONFIG = {
     'USE_PATCHES': True,                 # True: create patches, False: use full images
     'PATCH_SIZE': 640,                   # Only used if USE_PATCHES is True (e.g., 480, 640)
     'OVERLAP': 0,                        # Patch overlap in pixels (neighboring patches overlap)
-    'ALLOW_PARTIAL_PATCHES': True,        # YENİ: varsayılan True (eski davranış)
+    'ALLOW_PARTIAL_PATCHES': True,        # True: allow partial patches with padding, False: skip partial patches
+    'ALIGN_TO_END': False,               # True: align last patches to image end (no padding), False: normal grid
     
     # Class settings  
     'SINGLE_CLASS': True,                # True: single class (all objects -> class 0), False: multi-class
@@ -145,6 +146,7 @@ def main():
     PATCH_SIZE = config['PATCH_SIZE']
     OVERLAP = config['OVERLAP']
     ALLOW_PARTIAL_PATCHES = config.get('ALLOW_PARTIAL_PATCHES', True)
+    ALIGN_TO_END = config.get('ALIGN_TO_END', False)
     SINGLE_CLASS = config['SINGLE_CLASS']
     INCLUDE_TEST_SET = config['INCLUDE_TEST_SET']
     TRAIN_RATIO = config['TRAIN_RATIO']
@@ -162,6 +164,7 @@ def main():
         print(f"  PATCH_SIZE: {PATCH_SIZE}")
         print(f"  OVERLAP: {OVERLAP}")
         print(f"  ALLOW_PARTIAL_PATCHES: {ALLOW_PARTIAL_PATCHES}")
+        print(f"  ALIGN_TO_END: {ALIGN_TO_END}")
         print(f"  SKIP_EMPTY_PATCHES: {SKIP_EMPTY_PATCHES}")
         print(f"  OVERLAP_RATIO_THRESHOLD: {OVERLAP_RATIO_THRESHOLD}")
     print(f"  SINGLE_CLASS: {SINGLE_CLASS}")
@@ -274,8 +277,11 @@ def main():
         
         return inter_area / bbox1_area
 
-    def create_patches(img_array: np.ndarray, patch_size: int, overlap: int = 0, allow_partial: bool = True) -> Tuple[List[np.ndarray], List[Tuple[int, int, int, int]]]:
+    def create_patches(img_array: np.ndarray, patch_size: int, overlap: int = 0, allow_partial: bool = True, align_to_end: bool = False) -> Tuple[List[np.ndarray], List[Tuple[int, int, int, int]]]:
         """Create patches from image array"""
+        if align_to_end:
+            return create_patches_aligned(img_array, patch_size, overlap)
+        
         height, width = img_array.shape[:2]
         patches = []
         patch_coords = []
@@ -312,6 +318,72 @@ def main():
                 
                 patches.append(patch)
                 patch_coords.append((x, y, x_end, y_end))
+        
+        return patches, patch_coords
+
+    def create_patches_aligned(img_array: np.ndarray, patch_size: int, overlap: int = 0) -> Tuple[List[np.ndarray], List[Tuple[int, int, int, int]]]:
+        """Create patches aligned to image edges - no padding needed"""
+        height, width = img_array.shape[:2]
+        patches = []
+        patch_coords = []
+        
+        stride = patch_size - overlap
+        
+        # Calculate patch positions for X axis
+        x_positions = []
+        x = 0
+        while x < width:
+            x_end = min(x + patch_size, width)
+            if x_end - x >= patch_size * 0.5:  # Only if patch is at least 50% of target size
+                x_positions.append((x, x_end))
+            x += stride
+        
+        # If last patch would be too small or needs padding, align it to the end
+        if len(x_positions) > 0:
+            last_x_start, last_x_end = x_positions[-1]
+            if last_x_end < width:
+                # Remove last position and add end-aligned position
+                if last_x_end - last_x_start < patch_size:
+                    x_positions.pop()  # Remove incomplete last patch
+                # Add end-aligned patch
+                new_x_start = width - patch_size
+                if new_x_start >= 0:
+                    # Check if it overlaps too much with previous patch
+                    if len(x_positions) == 0 or new_x_start >= x_positions[-1][0] + stride * 0.5:
+                        x_positions.append((new_x_start, width))
+        
+        # Calculate patch positions for Y axis
+        y_positions = []
+        y = 0
+        while y < height:
+            y_end = min(y + patch_size, height)
+            if y_end - y >= patch_size * 0.5:
+                y_positions.append((y, y_end))
+            y += stride
+        
+        # If last patch would be too small or needs padding, align it to the end
+        if len(y_positions) > 0:
+            last_y_start, last_y_end = y_positions[-1]
+            if last_y_end < height:
+                if last_y_end - last_y_start < patch_size:
+                    y_positions.pop()
+                new_y_start = height - patch_size
+                if new_y_start >= 0:
+                    if len(y_positions) == 0 or new_y_start >= y_positions[-1][0] + stride * 0.5:
+                        y_positions.append((new_y_start, height))
+        
+        # Create patches from calculated positions
+        for y_start, y_end in y_positions:
+            for x_start, x_end in x_positions:
+                # Extract patch (guaranteed to be exactly patch_size x patch_size)
+                patch = img_array[y_start:y_end, x_start:x_end]
+                
+                # Resize if needed (should rarely happen, only for edge cases)
+                if patch.shape[0] != patch_size or patch.shape[1] != patch_size:
+                    patch = cv2.resize(patch, (patch_size, patch_size), interpolation=cv2.INTER_LINEAR)
+                
+                patches.append(patch)
+                patch_coords.append((x_start, y_start, x_end, y_end))
         
         return patches, patch_coords
 
@@ -446,7 +518,7 @@ def main():
             
             if USE_PATCHES:
                 # Create patches
-                patches, patch_coords = create_patches(img_array, PATCH_SIZE, OVERLAP, ALLOW_PARTIAL_PATCHES)
+                patches, patch_coords = create_patches(img_array, PATCH_SIZE, OVERLAP, ALLOW_PARTIAL_PATCHES, ALIGN_TO_END)
                 
                 # Process each patch
                 for patch_idx, (patch, coords) in enumerate(zip(patches, patch_coords)):
