@@ -20,6 +20,7 @@ DEFAULT_CONFIG = {
     'USE_PATCHES': True,                 # True: create patches, False: use full images
     'PATCH_SIZE': 640,                   # Only used if USE_PATCHES is True (e.g., 480, 640)
     'OVERLAP': 0,                        # Patch overlap in pixels (neighboring patches overlap)
+    'ALLOW_PARTIAL_PATCHES': True,        # YENİ: false yaparsanız yarım patch'lar atlanır
     
     # Class settings  
     'SINGLE_CLASS': True,                # True: single class (all objects -> class 0), False: multi-class
@@ -149,6 +150,7 @@ def main():
     VAL_RATIO = config['VAL_RATIO']
     SKIP_EMPTY_PATCHES = config['SKIP_EMPTY_PATCHES']
     OVERLAP_RATIO_THRESHOLD = config['OVERLAP_RATIO_THRESHOLD']
+    ALLOW_PARTIAL_PATCHES = config['ALLOW_PARTIAL_PATCHES']
     MIDOG_JSON = config['MIDOG_JSON']
     IMAGES_DIR = config['IMAGES_DIR']
     
@@ -161,6 +163,7 @@ def main():
         print(f"  OVERLAP: {OVERLAP}")
         print(f"  SKIP_EMPTY_PATCHES: {SKIP_EMPTY_PATCHES}")
         print(f"  OVERLAP_RATIO_THRESHOLD: {OVERLAP_RATIO_THRESHOLD}")
+        print(f"  ALLOW_PARTIAL_PATCHES: {ALLOW_PARTIAL_PATCHES}")
     print(f"  SINGLE_CLASS: {SINGLE_CLASS}")
     print(f"  INCLUDE_TEST_SET: {INCLUDE_TEST_SET}")
     if INCLUDE_TEST_SET:
@@ -271,7 +274,7 @@ def main():
         
         return inter_area / bbox1_area
 
-    def create_patches(img_array: np.ndarray, patch_size: int, overlap: int = 0) -> Tuple[List[np.ndarray], List[Tuple[int, int, int, int]]]:
+    def create_patches(img_array: np.ndarray, patch_size: int, overlap: int = 0, allow_partial: bool = True) -> Tuple[List[np.ndarray], List[Tuple[int, int, int, int]]]:
         """Create patches from image array"""
         height, width = img_array.shape[:2]
         patches = []
@@ -285,15 +288,24 @@ def main():
                 x_end = min(x + patch_size, width)
                 y_end = min(y + patch_size, height)
                 
-                # If patch is too small, skip it
-                if (x_end - x) < patch_size * 0.5 or (y_end - y) < patch_size * 0.5:
-                    continue
+                # Gerçek patch boyutları
+                actual_width = x_end - x
+                actual_height = y_end - y
+                
+                if not allow_partial:
+                    # Tam boyutlu değilse atla
+                    if actual_width != patch_size or actual_height != patch_size:
+                        continue
+                else:
+                    # Eski mantık: çok küçükse atla
+                    if actual_width < patch_size * 0.5 or actual_height < patch_size * 0.5:
+                        continue
                 
                 # Extract patch
                 patch = img_array[y:y_end, x:x_end]
                 
-                # Pad patch if necessary to reach exact patch_size
-                if patch.shape[0] < patch_size or patch.shape[1] < patch_size:
+                # Padding sadece allow_partial=True iken yapılır
+                if allow_partial and (patch.shape[0] < patch_size or patch.shape[1] < patch_size):
                     padded_patch = np.zeros((patch_size, patch_size, 3), dtype=patch.dtype)
                     padded_patch[:patch.shape[0], :patch.shape[1]] = patch
                     patch = padded_patch
@@ -434,7 +446,7 @@ def main():
             
             if USE_PATCHES:
                 # Create patches
-                patches, patch_coords = create_patches(img_array, PATCH_SIZE, OVERLAP)
+                patches, patch_coords = create_patches(img_array, PATCH_SIZE, OVERLAP, ALLOW_PARTIAL_PATCHES)
                 
                 # Process each patch
                 for patch_idx, (patch, coords) in enumerate(zip(patches, patch_coords)):
