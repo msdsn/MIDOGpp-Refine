@@ -20,7 +20,7 @@ DEFAULT_CONFIG = {
     'USE_PATCHES': True,                 # True: create patches, False: use full images
     'PATCH_SIZE': 640,                   # Only used if USE_PATCHES is True (e.g., 480, 640)
     'OVERLAP': 0,                        # Patch overlap in pixels (neighboring patches overlap)
-    'ALLOW_PARTIAL_PATCHES': True,        # YENİ: false yaparsanız yarım patch'lar atlanır
+    'ALLOW_PARTIAL_PATCHES': True,        # YENİ: varsayılan True (eski davranış)
     
     # Class settings  
     'SINGLE_CLASS': True,                # True: single class (all objects -> class 0), False: multi-class
@@ -144,13 +144,13 @@ def main():
     USE_PATCHES = config['USE_PATCHES']
     PATCH_SIZE = config['PATCH_SIZE']
     OVERLAP = config['OVERLAP']
+    ALLOW_PARTIAL_PATCHES = config.get('ALLOW_PARTIAL_PATCHES', True)
     SINGLE_CLASS = config['SINGLE_CLASS']
     INCLUDE_TEST_SET = config['INCLUDE_TEST_SET']
     TRAIN_RATIO = config['TRAIN_RATIO']
     VAL_RATIO = config['VAL_RATIO']
     SKIP_EMPTY_PATCHES = config['SKIP_EMPTY_PATCHES']
     OVERLAP_RATIO_THRESHOLD = config['OVERLAP_RATIO_THRESHOLD']
-    ALLOW_PARTIAL_PATCHES = config['ALLOW_PARTIAL_PATCHES']
     MIDOG_JSON = config['MIDOG_JSON']
     IMAGES_DIR = config['IMAGES_DIR']
     
@@ -161,9 +161,9 @@ def main():
     if USE_PATCHES:
         print(f"  PATCH_SIZE: {PATCH_SIZE}")
         print(f"  OVERLAP: {OVERLAP}")
+        print(f"  ALLOW_PARTIAL_PATCHES: {ALLOW_PARTIAL_PATCHES}")
         print(f"  SKIP_EMPTY_PATCHES: {SKIP_EMPTY_PATCHES}")
         print(f"  OVERLAP_RATIO_THRESHOLD: {OVERLAP_RATIO_THRESHOLD}")
-        print(f"  ALLOW_PARTIAL_PATCHES: {ALLOW_PARTIAL_PATCHES}")
     print(f"  SINGLE_CLASS: {SINGLE_CLASS}")
     print(f"  INCLUDE_TEST_SET: {INCLUDE_TEST_SET}")
     if INCLUDE_TEST_SET:
