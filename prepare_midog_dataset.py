@@ -25,6 +25,7 @@ DEFAULT_CONFIG = {
     
     # Class settings  
     'SINGLE_CLASS': True,                # True: single class (all objects -> class 0), False: multi-class
+    'MITOTIC_ONLY': False,               # True: only include mitotic figures (ignore non-mitotic), False: include all categories
     
     # Dataset split settings
     'INCLUDE_TEST_SET': True,            # True: train/val/test split, False: train/val split
@@ -100,6 +101,9 @@ def generate_output_dir(config: Dict[str, Any]) -> str:
     else:
         parts.append("multi_class")
     
+    if config.get('MITOTIC_ONLY', False):
+        parts.append("mitotic_only")
+    
     if not config['INCLUDE_TEST_SET']:
         parts.append("train_val_only")
     
@@ -148,6 +152,7 @@ def main():
     ALLOW_PARTIAL_PATCHES = config.get('ALLOW_PARTIAL_PATCHES', True)
     ALIGN_TO_END = config.get('ALIGN_TO_END', False)
     SINGLE_CLASS = config['SINGLE_CLASS']
+    MITOTIC_ONLY = config.get('MITOTIC_ONLY', False)
     INCLUDE_TEST_SET = config['INCLUDE_TEST_SET']
     TRAIN_RATIO = config['TRAIN_RATIO']
     VAL_RATIO = config['VAL_RATIO']
@@ -168,6 +173,7 @@ def main():
         print(f"  SKIP_EMPTY_PATCHES: {SKIP_EMPTY_PATCHES}")
         print(f"  OVERLAP_RATIO_THRESHOLD: {OVERLAP_RATIO_THRESHOLD}")
     print(f"  SINGLE_CLASS: {SINGLE_CLASS}")
+    print(f"  MITOTIC_ONLY: {MITOTIC_ONLY}")
     print(f"  INCLUDE_TEST_SET: {INCLUDE_TEST_SET}")
     if INCLUDE_TEST_SET:
         print(f"  TRAIN_RATIO: {TRAIN_RATIO}")
@@ -219,11 +225,23 @@ def main():
 
     # Create a mapping from category_id to class index (0-based for YOLO)
     if SINGLE_CLASS:
-        print("Using single class detection - all objects will be class 0")
-        category_id_to_idx = {cat['id']: 0 for cat in categories}
+        if MITOTIC_ONLY:
+            print("Using single class detection with mitotic only - only mitotic figures will be class 0")
+            # Only mitotic figures (category_id = 1) will be mapped to class 0
+            category_id_to_idx = {1: 0}  # Only mitotic figure -> class 0
+        else:
+            print("Using single class detection - all objects will be class 0")
+            category_id_to_idx = {cat['id']: 0 for cat in categories}
     else:
-        category_id_to_idx = {cat['id']: idx for idx, cat in enumerate(categories)}
-        print(f"Using multi-class detection. Categories: {category_id_to_idx}")
+        if MITOTIC_ONLY:
+            print("Using multi-class detection with mitotic only - only mitotic figures will be included")
+            # Only include mitotic categories, remap indices starting from 0
+            mitotic_categories = [cat for cat in categories if 'mitotic figure' == cat['name'] and 'not' not in cat['name']]
+            category_id_to_idx = {cat['id']: idx for idx, cat in enumerate(mitotic_categories)}
+            print(f"Mitotic categories only: {category_id_to_idx}")
+        else:
+            category_id_to_idx = {cat['id']: idx for idx, cat in enumerate(categories)}
+            print(f"Using multi-class detection. Categories: {category_id_to_idx}")
 
     # Split datasets
     random.seed(42)
@@ -406,6 +424,10 @@ def main():
         patch_annotations = []
         
         for ann in annotations_for_img:
+            # Skip non-mitotic annotations if MITOTIC_ONLY is enabled
+            if MITOTIC_ONLY and ann['category_id'] != 1:  # 1 is mitotic figure
+                continue
+                
             bbox = ann['bbox']  # [x1, y1, x2, y2]
             
             # Check if bbox intersects with current patch
@@ -418,7 +440,11 @@ def main():
                 
                 # Include annotation if significant overlap
                 if overlap_ratio > OVERLAP_RATIO_THRESHOLD:
-                    category_idx = category_id_to_idx.get(ann['category_id'], 0)
+                    category_idx = category_id_to_idx.get(ann['category_id'])
+                    
+                    # Skip if category not in mapping (can happen with MITOTIC_ONLY)
+                    if category_idx is None:
+                        continue
                     
                     # Convert intersection coordinates to patch coordinate system
                     patch_x1 = intersection[0] - x_start
@@ -450,7 +476,16 @@ def main():
         full_image_annotations = []
         
         for ann in annotations_for_img:
-            category_idx = category_id_to_idx.get(ann['category_id'], 0)
+            # Skip non-mitotic annotations if MITOTIC_ONLY is enabled
+            if MITOTIC_ONLY and ann['category_id'] != 1:  # 1 is mitotic figure
+                continue
+                
+            category_idx = category_id_to_idx.get(ann['category_id'])
+            
+            # Skip if category not in mapping (can happen with MITOTIC_ONLY)
+            if category_idx is None:
+                continue
+                
             bbox = ann['bbox']  # [x1, y1, x2, y2] in absolute pixels
             
             # Convert to YOLO format: [center_x, center_y, width, height] normalized
@@ -605,10 +640,19 @@ val: val/images
     yaml_content += "\n# Classes\nnames:\n"
 
     if SINGLE_CLASS:
-        yaml_content += "  0: mitotic_figure\n"
+        if MITOTIC_ONLY:
+            yaml_content += "  0: mitotic_figure\n"
+        else:
+            yaml_content += "  0: mitotic_figure\n"
     else:
-        for cat in categories:
-            yaml_content += f"  {category_id_to_idx[cat['id']]}: {cat['name']}\n"
+        if MITOTIC_ONLY:
+            # Only include mitotic categories
+            mitotic_categories = [cat for cat in categories if 'mitotic figure' == cat['name'] and 'not' not in cat['name']]
+            for cat in mitotic_categories:
+                yaml_content += f"  {category_id_to_idx[cat['id']]}: {cat['name']}\n"
+        else:
+            for cat in categories:
+                yaml_content += f"  {category_id_to_idx[cat['id']]}: {cat['name']}\n"
 
     with open(os.path.join(OUTPUT_DIR, "dataset.yaml"), 'w') as f:
         f.write(yaml_content)
